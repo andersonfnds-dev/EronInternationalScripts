@@ -1,0 +1,143 @@
+# Este script debe ser pegado en una celda con la opción "Insertar Python" en Excel 365
+
+# Cargar manualmente el rango desde Excel (ajustar el rango según el archivo)
+df_flex = xl("A1:D10")  # Ejemplo: xl("A1:D5")
+
+# Variables constantes configurables
+plataforma_pago = 'Contractor'
+empresa_contrato = 'LiteUp'
+periodo = 'Abr 25'
+clasificacion_asiento = 'CSV Otras Reclasificaciones'
+nombre_del_asiento = '06_04 Pagos nomina Abr-25 LiteUp Contractors'
+cod_moneda = '8'
+fecha = '30/04/2025'
+
+# Detectar si es el layout nuevo con columnas 'Detalle', 'Debe' y 'Fecha'
+colunas = list(df_flex.iloc[0])
+is_novo_layout = 'Detalle' in colunas and 'Debe' in colunas
+
+# Asignar nombres reales a las columnas
+df_flex.columns = colunas
+df_flex = df_flex.drop(index=0).reset_index(drop=True)
+
+# Estandarizar nombres de columnas (eliminar espacios)
+df_flex.columns = [str(col).strip() for col in df_flex.columns]
+
+# Detectar y mapear columnas necesarias
+if is_novo_layout:
+    # Renombrar columnas estándar para layout novo
+    df_flex = df_flex.rename(columns={'Detalle': 'FLEX', 'Debe': 'Honorarios'})
+    df_flex['Moneda'] = ''
+else:
+    # Ignorar columna 'Pais' si existe
+    if 'Pais' in df_flex.columns:
+        df_flex = df_flex.drop(columns=['Pais'])
+
+    # Buscar columna de honorarios de forma flexible
+    col_honorario = next(
+        (col for col in df_flex.columns if 'honorario' in col.casefold()),
+        None
+    )
+    if not col_honorario:
+        raise ValueError("No se encontró una columna de honorarios. Se espera algo como 'Honorarios' o 'Honorario Base'.")
+
+    df_flex = df_flex.rename(columns={col_honorario: 'Honorarios'})
+
+# Eliminar filas con datos faltantes
+df_flex = df_flex.dropna(subset=['FLEX', 'Honorarios'])
+
+# Convertir valores a numéricos
+df_flex['Honorarios'] = pd.to_numeric(df_flex['Honorarios'], errors='coerce')
+
+# Agregar fecha si aplica
+if is_novo_layout:
+    df_flex['Fecha'] = pd.to_datetime(df_flex['Fecha'], errors='coerce').dt.strftime('%d/%m/%Y')
+else:
+    df_flex['Fecha'] = fecha
+
+# Consolidar líneas con FLEX duplicado
+df_flex = df_flex.groupby(['FLEX', 'Moneda', 'Fecha'], as_index=False)['Honorarios'].sum()
+
+# Dividir el campo FLEX en partes
+partes_extraidas = df_flex['FLEX'].str.split('_')
+df_flex['Subsid. Legal'] = ''
+
+# Definir columnas contables
+colunas_detalhadas = [
+    'Cuenta', 'Agente', 'Merchant', 'Proyecto', 'Resp. Cargo', 'Dpto',
+    'Prod.', 'Tipo Canal', 'Metodo', 'Negocio', 'E. Financiera', 'Marca'
+]
+for col in colunas_detalhadas:
+    df_flex[col] = ''
+
+# Rellenar columnas contables si FLEX tiene 13 partes
+for i, row in df_flex.iterrows():
+    partes = str(row['FLEX']).split('_')
+    if len(partes) == 13:
+        df_flex.at[i, 'Subsid. Legal'] = partes[0]
+        for j, col in enumerate(colunas_detalhadas):
+            df_flex.at[i, col] = partes[j + 1]
+
+# Duplicar filas para crear débitos y créditos
+df_debito = df_flex.copy()
+df_credito = df_flex.copy()
+
+df_debito['Débito'] = df_debito['Honorarios']
+df_debito['Crédito'] = 0
+df_credito['Débito'] = 0
+df_credito['Crédito'] = df_credito['Honorarios']
+
+# Unir débitos y créditos
+df_final = pd.concat([df_debito, df_credito], ignore_index=True)
+
+# Agregar campos fijos
+df_final['Currency'] = df_final['Moneda']
+df_final['Período'] = periodo
+df_final['Clasificacion Asiento'] = clasificacion_asiento
+df_final['Nombre del asiento'] = nombre_del_asiento
+df_final['Descripcion'] = (
+    nombre_del_asiento + ' | ' + plataforma_pago + ' | ' + empresa_contrato + ' | ' + df_final['Moneda']
+)
+df_final['Moneda'] = cod_moneda
+df_final['Empresa de contrato'] = empresa_contrato
+df_final['Plataforma de pago'] = plataforma_pago
+df_final['Flex Contable'] = df_final['FLEX']
+df_final['Importe'] = df_final['Honorarios']
+
+# Orden final de columnas
+colunas_finais = [
+    'External ID', 'Currency', 'Empresa de contrato', 'Plataforma de pago', 'Flex Contable',
+    'Importe', 'Subsid. Legal', 'Cuenta', 'Agente', 'Merchant', 'Proyecto', 'Resp. Cargo',
+    'Dpto', 'Prod.', 'Tipo Canal', 'Metodo', 'Negocio', 'E. Financiera', 'Marca',
+    'Débito', 'Crédito', 'Fecha', 'Período', 'Clasificacion Asiento', 'Descripcion',
+    'Moneda', 'Nombre del asiento'
+]
+
+# Gerar IDs solo para líneas regulares
+df_final['External ID'] = ''
+df_final.loc[df_final['FLEX'].notna(), 'External ID'] = range(1, df_final['FLEX'].notna().sum() + 1)
+
+# Línea total final
+total_debito = df_final['Débito'].sum()
+total_credito = df_final['Crédito'].sum()
+valido = total_debito == total_credito
+
+linha_total = {col: '' for col in df_final.columns}
+linha_total['Débito'] = total_debito
+linha_total['Crédito'] = total_credito
+linha_total['Fecha'] = 'VERDADEIRO' if valido else 'FALSO'
+
+df_final = pd.concat([df_final, pd.DataFrame([linha_total])], ignore_index=True)
+
+# Ajuste de formatos y tipos
+df_final['External ID'] = df_final['External ID'].apply(lambda x: int(x) if str(x).isdigit() else '')
+df_final['Período'] = df_final['Período'].astype(str)
+df_final['Fecha'] = df_final['Fecha'].apply(
+    lambda x: x if x in ['VERDADEIRO', 'FALSO'] else pd.to_datetime(x, errors='coerce').strftime('%d/%m/%Y')
+)
+
+# Mostrar en Excel
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+df_final = df_final[colunas_finais]
+df_final
