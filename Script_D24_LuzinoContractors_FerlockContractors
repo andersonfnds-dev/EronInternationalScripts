@@ -25,7 +25,8 @@ mapa_plataformas = {
     'luzino payroll': ('Payroll', 'Luzino'),
     'luzino contractors': ('Damiani', 'Luzino'),
     'carmoly': ('Damiani', 'Carmoly'),
-    'ferlock': ('Damiani', 'Ferlock')
+    'ferlock payroll': ('Damiani', 'Ferlock'),
+    'ferlock contractors': ('Damiani', 'Ferlock'),
 }
 
 mapa_monedas = {

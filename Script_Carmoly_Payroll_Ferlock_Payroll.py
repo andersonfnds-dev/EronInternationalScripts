@@ -1,3 +1,4 @@
+
 import pandas as pd
 import numpy as np
 import calendar
@@ -7,9 +8,10 @@ import re
 # =========================================
 # 0. Configurações iniciais
 # =========================================
-df_flex = xl("D5:V38")  # Ajuste conforme o arquivo
+df_flex = xl("D4:U29")  # Ajuste conforme o arquivo
 
 plataforma_pago = 'carmoly'
+#plataforma_pago = 'ferlock payroll'
 cod_moneda_default = '1'
 
 colunas_finais = [
@@ -32,6 +34,7 @@ colunas_valores_base = [
 
 mapa_plataformas = {
     'carmoly': ('Damiani', 'Carmoly'),
+    'ferlock payroll': ('Damiani', 'Ferlock')
 }
 
 plataforma_pago_key = plataforma_pago.lower()
