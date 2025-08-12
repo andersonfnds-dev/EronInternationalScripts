@@ -4,12 +4,29 @@ import calendar
 import datetime as dt
 
 # =========================================
-# 0. Configurações iniciais
-# =========================================
-df_raw = xl("A6:M30", header=None, dtype=str)  # lê tudo como string
+# ⚠️ CONFIGURACIÓN MANUAL ⚠️
+# Ajustar rango según el archivo
+# Ajustar cod_moneda según la moneda utilizada
+# -----------------------------------------
 
-plataforma_pago = 'luzino payroll'
-cod_moneda_default = '4'
+df_raw = xl("", header=None, dtype=str)  
+
+#plataforma_pago = 'd24'
+#plataforma_pago = 'luzino contractors'
+#plataforma_pago = 'ferlock payroll'
+#plataforma_pago = 'ferlock contractors'
+#plataforma_pago = 'op'
+#plataforma_pago = 'cash'
+#plataforma_pago = 'damiani'
+#plataforma_pago = 'liteup payroll'
+#plataforma_pago = 'liteup contractors'
+#plataforma_pago = 'luzino payroll'
+#plataforma_pago = 'carmoly'
+
+#cod_moneda_default = '4'
+
+# =========================================
+# =========================================
 
 colunas_finais = [
     'External ID', 'Currency', 'Empresa de contrato', 'Plataforma de pago', 'Flex Contable',

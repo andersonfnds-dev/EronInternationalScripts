@@ -11,9 +11,17 @@ import datetime as dt
 
 df_flex = xl()  # Ejemplo: xl("A1:D5")
 
-#plataforma_pago = 'cash'
+#plataforma_pago = 'd24'
+#plataforma_pago = 'luzino contractors'
+#plataforma_pago = 'ferlock payroll'
+#plataforma_pago = 'ferlock contractors'
 #plataforma_pago = 'op'
-#plataforma_pago = 'deel'
+#plataforma_pago = 'cash'
+#plataforma_pago = 'damiani'
+#plataforma_pago = 'liteup payroll'
+#plataforma_pago = 'liteup contractors'
+#plataforma_pago = 'luzino payroll'
+#plataforma_pago = 'carmoly'
 
 #cod_moneda = '5'  
 # Preencha caso a coluna Moneda esteja totalmente vazia

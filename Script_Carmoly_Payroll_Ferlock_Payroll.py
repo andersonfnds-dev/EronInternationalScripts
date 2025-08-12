@@ -8,11 +8,21 @@ import re
 # =========================================
 # 0. Configurações iniciais
 # =========================================
-df_flex = xl("D4:U29")  # Ajuste conforme o arquivo
+df_flex = xl()  # Ajuste conforme o arquivo
 
-plataforma_pago = 'carmoly'
+#plataforma_pago = 'd24'
+#plataforma_pago = 'luzino contractors'
 #plataforma_pago = 'ferlock payroll'
-cod_moneda_default = '1'
+#plataforma_pago = 'ferlock contractors'
+#plataforma_pago = 'op'
+#plataforma_pago = 'cash'
+#plataforma_pago = 'damiani'
+#plataforma_pago = 'liteup payroll'
+#plataforma_pago = 'liteup contractors'
+#plataforma_pago = 'luzino payroll'
+#plataforma_pago = 'carmoly'
+
+#cod_moneda_default = '1'
 
 colunas_finais = [
     'External ID', 'Currency', 'Empresa de contrato', 'Plataforma de pago', 'Flex Contable',
