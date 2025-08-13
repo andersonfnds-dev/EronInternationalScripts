@@ -144,7 +144,7 @@ if plataforma_pago_key == 'luzino contractors':
 elif plataforma_pago_key == 'd24':
     padrao_subsid = ['22','68900.0001','0000','00000','0101','998','0306','1400','00','00','0000','0000','0000']
     padrao_credito = ['22','11444.0001','0000','00000','0101','998','0306','1400','00','00','0000','0000','0000']
-elif plataforma_pago_key == 'ferlock':
+elif plataforma_pago_key == 'ferlock payroll' or plataforma_pago_key == 'ferlock contractors':
     padrao_subsid = ['45','68900.0001','0000','00000','0103','996','0306','1400','00','00','0000','0000','0002']
     padrao_credito = ['45','11444.0001','0000','00000','0103','996','0306','1400','00','00','0000','0000','0002']
 
