@@ -1,0 +1,229 @@
+import pandas as pd
+import datetime as dt
+import calendar
+
+# =========================
+# 1. Configuração Manual
+# =========================
+
+df_flex = xl()  # Ajuste o range conforme necessário
+
+#plataforma_pago = 'd24'
+#plataforma_pago = 'luzino contractors'
+#plataforma_pago = 'ferlock payroll'
+#plataforma_pago = 'ferlock contractors'
+#plataforma_pago = 'op'
+#plataforma_pago = 'cash'
+#plataforma_pago = 'damiani'
+#plataforma_pago = 'liteup payroll'
+#plataforma_pago = 'liteup contractors'
+#plataforma_pago = 'luzino payroll'
+#plataforma_pago = 'carmoly'
+
+#cod_moneda = '8'          # Código padrão caso Moneda esteja vazia
+
+mapa_plataformas = {
+    'cash': ('Cash', 'Luzino'),
+    'op': ('OP Payroll', 'OP'),
+    'deel': ('Deel', 'Luzino'),
+    'damiani': ('Damiani', 'Directa 24 LLC'),
+    'd24': ('Damiani', 'Directa 24 LLC'),
+    'liteup payroll': ('Payroll', 'LiteUp'),
+    'liteup contractors': ('Contractors', 'LiteUp'),
+    'luzino payroll': ('Payroll', 'Luzino'),
+    'luzino contractors': ('Damiani', 'Luzino'),
+    'carmoly': ('Damiani', 'Carmoly'),
+    'ferlock payroll': ('Damiani', 'Ferlock'),
+    'ferlock contractors': ('Damiani', 'Ferlock'),
+}
+
+mapa_monedas = {
+    'UYU': 1, 'GBP': 2, 'CAD': 3, 'EUR': 4, 'USD': 5, 'ARS': 6, 'BOB': 7, 'BRL': 8,
+    'CLP': 10, 'CNY': 11, 'COP': 12, 'CRC': 14, 'INR': 16, 'JPY': 17, 'MXN': 19, 
+    'PEN': 22, 'PYG': 24, 'THB': 25, 'VES': 27, 'VND': 28, 'ZAR': 30
+}
+
+plataforma_pago_key = plataforma_pago.lower()
+plataforma_pago, empresa_contrato = mapa_plataformas[plataforma_pago_key]
+
+# =========================
+# 2. Datas e Período
+# =========================
+
+hoy = dt.datetime.today()
+mes_abrev = hoy.strftime('%b')
+anio = hoy.year
+ultimo_dia = calendar.monthrange(anio, hoy.month)[1]
+fecha = f"{ultimo_dia:02d}/{hoy.month:02d}/{anio}"
+periodo = f"{mes_abrev} {anio}"
+
+nombre_del_asiento = f"{hoy.day:02d}_{hoy.month:02d} Pagos {periodo} {plataforma_pago} {empresa_contrato}"
+
+# =========================
+# 3. Limpeza e Tratamento
+# =========================
+
+df_flex.columns = [str(c).strip() for c in df_flex.iloc[0]]
+df_flex = df_flex.drop(index=0).reset_index(drop=True)
+
+# Renomeia para padrão esperado
+df_flex = df_flex.rename(columns={'Detalle': 'FLEX', 'Debe': 'Honorarios'})
+
+# Remove linhas totalmente vazias
+df_flex = df_flex.dropna(how='all')
+
+# Converte valores
+df_flex['Honorarios'] = pd.to_numeric(df_flex['Honorarios'], errors='coerce').fillna(0)
+df_flex = df_flex[df_flex['Honorarios'] != 0].reset_index(drop=True)
+
+# Ajusta Moneda
+if 'Moneda' not in df_flex.columns or df_flex['Moneda'].isna().all():
+    df_flex['Currency'] = 'USD'
+    df_flex['Moneda'] = mapa_monedas.get('USD', 5)
+else:
+    df_flex['Moneda'] = df_flex['Moneda'].astype(str).str.upper().str.strip()
+    df_flex['Currency'] = df_flex['Moneda']
+    df_flex['Moneda'] = df_flex['Moneda'].map(mapa_monedas)
+
+# =========================
+# 4. Ajusta Flex Contable
+# =========================
+
+def ajustar_flex(detalle):
+    # Converte para string, se for None vira ''
+    detalle_str = '' if pd.isna(detalle) else str(detalle).strip().upper()
+
+    if 'COBRO' in detalle_str or detalle_str == '':
+        return 'gastos bancarios'
+    elif 'CANCELA FAC' in detalle_str:
+        return 'Fee Damiani'
+    else:
+        return detalle_str
+
+df_flex['Flex Contable'] = df_flex['FLEX'].apply(ajustar_flex)
+
+# 5. Débito e Crédito
+
+# Soma honorários por Flex Contable (numéricos e textuais juntos)
+df_flex_grouped = df_flex.groupby('Flex Contable', as_index=False).agg({
+    'FLEX': 'first',              # Mantém o primeiro FLEX para referência
+    'Honorarios': 'sum',
+    'Currency': 'first',
+    'Moneda': 'first'
+})
+
+# Linhas de débito
+df_debito = df_flex.copy()
+df_debito['Débito'] = df_debito['Honorarios']
+df_debito['Crédito'] = 0
+
+total_debito = df_flex['Honorarios'].sum()
+
+# Linha final crédito total (com Currency e Moneda já preenchidos)
+df_credito_total = pd.DataFrame([{
+    'FLEX': 'Baja Anticipo',
+    'Flex Contable': 'Baja Anticipo',
+    'Honorarios': total_debito,
+    'Débito': 0,
+    'Crédito': total_debito,
+    'Currency': df_flex['Currency'].iloc[0],
+    'Moneda': df_flex['Moneda'].iloc[0]
+}])
+
+# Une débitos e crédito final
+df_final = pd.concat([df_debito, df_credito_total], ignore_index=True)
+
+# =========================
+# 6. Campos Detalhados com Lógica Corrigida
+# =========================
+
+# Ajusta padrões de crédito/subsídio conforme plataforma
+if plataforma_pago_key == 'luzino contractors':
+    padrao_subsid = ['41','68900.0001','0175','00000','0373','998','0306','1400','00','00','0000','0000','0000']
+    padrao_credito = ['41','11444.0001','0175','00000','0373','998','0306','1400','00','00','0000','0000','0000']
+elif plataforma_pago_key == 'd24':
+    padrao_subsid = ['22','68900.0001','0000','00000','0101','998','0306','1400','00','00','0000','0000','0000']
+    padrao_credito = ['22','11444.0001','0000','00000','0101','998','0306','1400','00','00','0000','0000','0000']
+elif plataforma_pago_key == 'ferlock':
+    padrao_subsid = ['45','68900.0001','0000','00000','0103','996','0306','1400','00','00','0000','0000','0002']
+    padrao_credito = ['45','11444.0001','0000','00000','0103','996','0306','1400','00','00','0000','0000','0002']
+
+colunas_detalhadas = [
+    'Subsid. Legal','Cuenta','Agente','Merchant','Proyecto','Resp. Cargo','Dpto','Prod.',
+    'Tipo Canal','Metodo','Negocio','E. Financiera','Marca'
+]
+for col in colunas_detalhadas:
+    df_final[col] = ''
+
+def eh_flex_numerico(flex):
+    partes = str(flex).split('_')
+    return len(partes) == 13 and partes[0].isdigit()
+
+for i in range(len(df_final)):
+    flex_val = df_final.loc[i, 'FLEX']
+    
+    if i == len(df_final)-1:  
+        # Última linha (crédito total)
+        df_final.loc[i, colunas_detalhadas] = padrao_credito
+
+    elif eh_flex_numerico(flex_val):
+        # Expande FLEX numérico em 13 colunas
+        partes = flex_val.split('_')
+        for j, col in enumerate(colunas_detalhadas):
+            df_final.loc[i, col] = partes[j]
+    
+    else:
+        # FLEX textual -> usa padrão de débito
+        df_final.loc[i, colunas_detalhadas] = padrao_subsid
+
+# Converte para numérico, tratando erros
+df_final['Subsid. Legal'] = pd.to_numeric(df_final['Subsid. Legal'], errors='coerce').fillna(0)
+
+# Descobre primeiro valor válido diferente de 0
+valor_base = df_final.loc[df_final['Subsid. Legal'] != 0, 'Subsid. Legal'].iloc[0]
+
+# Substitui 0 pelo valor_base
+df_final['Subsid. Legal'] = df_final['Subsid. Legal'].replace(0, valor_base)
+
+# =========================
+# 7. Demais colunas obrigatórias
+# =========================
+
+df_final['External ID'] = f"Nom_Pagos_{mes_abrev}{anio}"
+df_final['Empresa de contrato'] = empresa_contrato
+df_final['Plataforma de pago'] = plataforma_pago
+df_final['Importe Feb'] = df_final['Honorarios']
+df_final['Fecha'] = fecha
+df_final['Período'] = periodo
+df_final['Clasificacion Asiento'] = 'CSV Otras Reclasificaciones'
+df_final['Nombre del asiento'] = nombre_del_asiento
+df_final['Descripcion'] = nombre_del_asiento + ' | ' + plataforma_pago + ' | ' + empresa_contrato
+
+# Se Currency/Moneda estiverem vazios, preenche com os da primeira linha
+df_final['Currency'] = df_final['Currency'].fillna(df_flex['Currency'].iloc[0])
+df_final['Moneda'] = df_final['Moneda'].fillna(df_flex['Moneda'].iloc[0])
+
+# =========================
+# 8. Colunas finais na ordem certa
+# =========================
+
+colunas_finais = [
+    'External ID','Currency','Empresa de contrato','Plataforma de pago','Flex Contable','Importe Feb',
+    'Subsid. Legal','Cuenta','Agente','Merchant','Proyecto','Resp. Cargo','Dpto','Prod.','Tipo Canal',
+    'Metodo','Negocio','E. Financiera','Marca','Débito','Crédito','Fecha','Período',
+    'Clasificacion Asiento','Descripcion','Moneda','Nombre del asiento'
+]
+
+total_debito = df_final['Débito'].sum()
+total_credito = df_final['Crédito'].sum()
+valido = total_debito == total_credito
+
+linha_total = {col: '' for col in df_final.columns}
+linha_total['Débito'] = total_debito
+linha_total['Crédito'] = total_credito
+linha_total['Fecha'] = 'VERDADEIRO' if valido else 'FALSO'
+
+df_final = pd.concat([df_final, pd.DataFrame([linha_total])], ignore_index=True)
+
+df_final = df_final[colunas_finais]
+df_final
