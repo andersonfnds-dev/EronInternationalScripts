@@ -10,9 +10,9 @@ import pandas as pd
 
 # -----------------------------------------
 
-df_flex = pd.read_excel('C:\\Users\\Usuario\\Downloads\\Info Excel Solutions\\Info Excel Solutions\\CASH\\Listo - FLEX - Cash (Abril).xlsx')  # Ejemplo: xl("A1:D5")
+df_flex = pd.read_excel('C:\\Users\\Usuario\\Downloads\\Info Excel Solutions\\Info Excel Solutions\\CASH\\Listo - FLEX - Cash (Abril).xlsx')
 
-plataforma_pago = input("Qual a plataforma de pago? (cash, deel, op, damiani, d24, liteup payroll, liteup contractors, luzino payroll, luzino contractors, carmoly, ferlock) ")
+plataforma_pago = input("Qual a plataforma de pago? (cash, deel, op, damiani, d24, liteup payroll, liteup contractors, luzino payroll, luzino contractors, carmoly, ferlock payroll, ferlock contractors) ")
 
 cod_moneda = input("Qual o código da moeda? (ex: USD, EUR, UYU) Deixe vazio se a coluna Moneda estiver preenchida: ")
 #plataforma_pago = 'd24'
@@ -34,8 +34,12 @@ cod_moneda = input("Qual o código da moeda? (ex: USD, EUR, UYU) Deixe vazio se 
 # =========================================
 mapa_tipos_tabelas = {
     'tipo1' : ('Cash', 'Deel', 'LiteUp Contractors'),
-    'tipo2' : ('D24','Luzino Contractors','Ferlock Contractors')
-}
+    'tipo2' : ('D24','Luzino Contractors','Ferlock Contractors'),
+    'tipo3' : ('OP Payroll'),
+    'tipo4' : ('LiteUp Payroll'),
+    'tipo5' : ('Carmoly', 'Ferlock Payroll'),
+    'tipo6' : ('Luzino Payroll')
+ }
 
 mapa_plataformas = {
     'cash': ('Cash', 'Luzino'),
@@ -48,7 +52,8 @@ mapa_plataformas = {
     'luzino payroll': ('Payroll', 'Luzino'),
     'luzino contractors': ('Damiani', 'Luzino'),
     'carmoly': ('Damiani', 'Carmoly'),
-    'ferlock': ('Damiani', 'Ferlock')
+    'ferlock payroll': ('Damiani', 'Ferlock'),
+    'ferlock contractors': ('Damiani', 'Ferlock')
 }
 
 if plataforma_pago.lower() not in mapa_plataformas:
@@ -214,4 +219,7 @@ df_final['Fecha'] = df_final['Fecha'].apply(
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 df_final = df_final[colunas_finais]
-print(df_final)
+
+df_final.to_excel('caminho de salvamento', index=False)
+
+time.sleep(25)
