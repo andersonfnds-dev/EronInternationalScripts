@@ -1,16 +1,20 @@
 import calendar
 import datetime as dt
+import pandas as pd
 
 # =========================================
-# ⚠️ CONFIGURACIÓN MANUAL ⚠️
+# ⚠ CONFIGURACIÓN MANUAL ⚠
 # Ajustar rango según el archivo
 # BORRE el símbolo "#" en la línea correspondiente a plataforma_pago
 # Ajustar cod_moneda según la moneda utilizada
 
 # -----------------------------------------
 
-df_flex = xl()  # Ejemplo: xl("A1:D5")
+df_flex = pd.read_excel('C:\\Users\\Usuario\\Downloads\\Info Excel Solutions\\Info Excel Solutions\\CASH\\Listo - FLEX - Cash (Abril).xlsx')  # Ejemplo: xl("A1:D5")
 
+plataforma_pago = input("Qual a plataforma de pago? (cash, deel, op, damiani, d24, liteup payroll, liteup contractors, luzino payroll, luzino contractors, carmoly, ferlock) ")
+
+cod_moneda = input("Qual o código da moeda? (ex: USD, EUR, UYU) Deixe vazio se a coluna Moneda estiver preenchida: ")
 #plataforma_pago = 'd24'
 #plataforma_pago = 'luzino contractors'
 #plataforma_pago = 'ferlock payroll'
@@ -25,10 +29,14 @@ df_flex = xl()  # Ejemplo: xl("A1:D5")
 
 #cod_moneda = '5'  
 # Preencha caso a coluna Moneda esteja totalmente vazia
-
 # =========================================
 # 1. Mapeo de plataformas y empresas
 # =========================================
+mapa_tipos_tabelas = {
+    'tipo1' : ('Cash', 'Deel', 'LiteUp Contractors'),
+    'tipo2' : ('D24','Luzino Contractors','Ferlock Contractors')
+}
+
 mapa_plataformas = {
     'cash': ('Cash', 'Luzino'),
     'op': ('OP Payroll', 'OP'),
@@ -45,7 +53,7 @@ mapa_plataformas = {
 
 if plataforma_pago.lower() not in mapa_plataformas:
     raise ValueError(
-        f"⚠️ Plataforma '{plataforma_pago}' no encontrada.\n"
+        f"⚠ Plataforma '{plataforma_pago}' no encontrada.\n"
         f"Opciones válidas: {', '.join(mapa_plataformas.keys())}"
     )
 
@@ -78,25 +86,28 @@ mapa_monedas = {
 colunas = list(df_flex.iloc[0])
 is_novo_layout = 'Detalle' in colunas and 'Debe' in colunas
 
-df_flex.columns = colunas
-df_flex = df_flex.drop(index=0).reset_index(drop=True)
-df_flex.columns = [str(col).strip() for col in df_flex.columns]
+# # df_flex.columns = colunas
+# # print(df_flex.columns)
+# df_flex = df_flex.drop(index=0).reset_index(drop=True)
+# df_flex.columns = [str(col).strip() for col in df_flex.columns]
 
 df_flex['Moneda'] = df_flex['Moneda'].astype(str).str.strip()
-df_flex['Moneda'].replace({'nan': '', 'NaN': ''}, inplace=True)
+df_flex['Moneda'].replace({'nan': '', 'NaN': ''}, regex=False, inplace=True)
+
+print(df_flex)
 
 if df_flex['Moneda'].eq('').all():
     # Coluna Moneda está completamente vazia
     if cod_moneda == '':
-        raise ValueError("⚠️ Nenhuma moeda foi detectada. Preencha 'cod_moneda'.")
+        raise ValueError("⚠ Nenhuma moeda foi detectada. Preencha 'cod_moneda'.")
     df_flex['Currency'] = cod_moneda.upper()
     df_flex['Moneda'] = mapa_monedas.get(cod_moneda.upper(), cod_moneda.upper())
 else:
     # Coluna Moneda preenchida
     df_flex['Moneda'] = df_flex['Moneda'].str.upper()
     invalidos = [m for m in df_flex['Moneda'].unique() if m not in mapa_monedas]
-    if invalidos:
-        raise ValueError(f"⚠️ Códigos de moeda inválidos no arquivo: {invalidos}")
+    if cod_moneda == '':
+        pass
     df_flex['Currency'] = df_flex['Moneda']           # ISO visível
     df_flex['Moneda'] = df_flex['Moneda'].map(mapa_monedas)  # Código interno
 
@@ -196,11 +207,11 @@ df_final = pd.concat([df_final, pd.DataFrame([linha_total])], ignore_index=True)
 # Ajustes finais
 df_final['Período'] = df_final['Período'].astype(str)
 df_final['Fecha'] = df_final['Fecha'].apply(
-    lambda x: x if x in ['VERDADEIRO', 'FALSO'] else pd.to_datetime(x, errors='coerce').strftime('%d/%m/%Y')
+    lambda x: x if x in ['VERDADEIRO', 'FALSO'] else pd.to_datetime(x, errors='coerce', dayfirst=True).strftime('%d/%m/%Y')
 )
 
 # Mostrar no Excel
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 df_final = df_final[colunas_finais]
-df_final
+print(df_final)
