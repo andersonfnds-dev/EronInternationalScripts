@@ -1,0 +1,17 @@
+# Ignore tudo por padrão
+*
+
+# Manter estes arquivos
+!.gitignore
+!LICENSE
+
+# Manter a pasta Scripts
+!Scripts/
+
+# Dentro de Scripts, ignorar tudo...
+Scripts/*
+
+# ...exceto os arquivos .py na raiz de Scripts
+!Scripts/*.py
+
+
